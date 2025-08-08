@@ -1,3 +1,7 @@
+// File: homework11_optimized.c
+// Description: Polynomial addition using linked lists, optimized with a dummy
+// head node.
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -14,27 +18,26 @@ Node *PolyAdd(Node *p, Node *q);
 void PolyOutput(Node *head);
 void FreePoly(Node *head);
 
-// 功能: 创建并输入一个多项式，返回头指针
+// 功能: 创建并输入一个多项式
 Node *PolyInput(void) {
   int n, c, e;
   Node *head = NULL, *current = NULL;
 
   printf("输入多项式非零项的个数 n: ");
   scanf("%d", &n);
-  if (n > 0) {
-    printf("输入 %d 对系数和指数:\n", n);
-  }
+  if (n <= 0)
+    return NULL;
 
+  printf("请按指数递减的顺序，输入 %d 对系数和指数:\n", n);
   for (int i = 0; i < n; i++) {
     scanf("%d %d", &c, &e);
     Node *newNode = (Node *)malloc(sizeof(Node));
     if (!newNode)
-      return NULL;
+      return NULL; // 内存分配失败
     newNode->coef = c;
     newNode->exp = e;
     newNode->next = NULL;
 
-    // 插入到链表尾部 (输入已按指数递减排列)
     if (head == NULL) {
       head = current = newNode;
     } else {
@@ -52,66 +55,83 @@ void PolyOutput(Node *head) {
     return;
   }
   Node *current = head;
+  int isFirstTerm = 1;
   while (current != NULL) {
+    if (current->coef == 0) { // 不打印系数为0的项
+      current = current->next;
+      continue;
+    }
     // 控制符号显示
-    if (current->coef > 0 && current != head) {
-      printf("+");
+    if (current->coef > 0 && !isFirstTerm) {
+      printf(" + ");
+    } else if (current->coef < 0) {
+      printf(" - ");
     }
-    // 不显示系数为1的情况 (除非指数为0)
-    if (current->coef == 1 && current->exp != 0) {
-      printf("X^%d ", current->exp);
-    } else if (current->coef == -1 && current->exp != 0) {
-      printf("-X^%d ", current->exp);
-    } else {
-      printf("%dX^%d ", current->coef, current->exp);
+
+    int abs_coef = abs(current->coef);
+
+    // 系数处理
+    if (abs_coef != 1 || current->exp == 0) {
+      printf("%d", abs_coef);
     }
+
+    // 指数处理
+    if (current->exp > 0) {
+      printf("x");
+      if (current->exp > 1) {
+        printf("^%d", current->exp);
+      }
+    }
+    isFirstTerm = 0;
     current = current->next;
+  }
+  if (isFirstTerm) { // 如果所有项系数都为0
+    printf("0");
   }
   printf("\n");
 }
 
-// 功能: 将两个多项式p和q相加，返回新多项式的头指针
+// 功能: 将两个多项式p和q相加 (使用虚拟头结点优化)
 Node *PolyAdd(Node *p, Node *q) {
-  Node *head = NULL, *tail = NULL;
-  Node *ptr_p = p;
-  Node *ptr_q = q;
+  // dummyHead 是一个栈上的临时节点，用作新链表的虚拟头。
+  // 这使得我们无需特殊处理第一个节点的插入，代码更统一。
+  Node dummyHead;
+  dummyHead.next = NULL;
+  Node *tail = &dummyHead; // tail 始终指向新链表的最后一个节点
 
-  while (ptr_p != NULL && ptr_q != NULL) {
+  // 合并 p 和 q 中指数相同的项
+  while (p != NULL && q != NULL) {
     Node *newNode = (Node *)malloc(sizeof(Node));
     if (!newNode)
-      return NULL;
-    newNode->next = NULL;
+      return NULL; // 内存分配失败
 
-    if (ptr_p->exp > ptr_q->exp) {
-      newNode->coef = ptr_p->coef;
-      newNode->exp = ptr_p->exp;
-      ptr_p = ptr_p->next;
-    } else if (ptr_p->exp < ptr_q->exp) {
-      newNode->coef = ptr_q->coef;
-      newNode->exp = ptr_q->exp;
-      ptr_q = ptr_q->next;
+    if (p->exp > q->exp) {
+      newNode->coef = p->coef;
+      newNode->exp = p->exp;
+      p = p->next;
+    } else if (p->exp < q->exp) {
+      newNode->coef = q->coef;
+      newNode->exp = q->exp;
+      q = q->next;
     } else { // 指数相同
-      newNode->coef = ptr_p->coef + ptr_q->coef;
-      newNode->exp = ptr_p->exp;
-      ptr_p = ptr_p->next;
-      ptr_q = ptr_q->next;
+      newNode->coef = p->coef + q->coef;
+      newNode->exp = p->exp;
+      p = p->next;
+      q = q->next;
     }
 
     // 只有系数不为0的项才加入新链表
     if (newNode->coef != 0) {
-      if (head == NULL) {
-        head = tail = newNode;
-      } else {
-        tail->next = newNode;
-        tail = newNode;
-      }
+      newNode->next = NULL;
+      tail->next = newNode;
+      tail = newNode;
     } else {
-      free(newNode); // 释放系数为0的节点
+      free(newNode); // 系数为0的项，释放内存，不加入链表
     }
   }
 
-  // 将剩余的项连接到新链表尾部
-  Node *rest = (ptr_p != NULL) ? ptr_p : ptr_q;
+  // 将 p 或 q 中剩余的项直接复制到新链表尾部
+  Node *rest = (p != NULL) ? p : q;
   while (rest != NULL) {
     Node *newNode = (Node *)malloc(sizeof(Node));
     if (!newNode)
@@ -120,16 +140,12 @@ Node *PolyAdd(Node *p, Node *q) {
     newNode->exp = rest->exp;
     newNode->next = NULL;
 
-    if (head == NULL) {
-      head = tail = newNode;
-    } else {
-      tail->next = newNode;
-      tail = newNode;
-    }
+    tail->next = newNode;
+    tail = newNode;
     rest = rest->next;
   }
 
-  return head;
+  return dummyHead.next; // 返回真正的新链表头
 }
 
 // 释放链表内存
@@ -143,8 +159,9 @@ void FreePoly(Node *head) {
 }
 
 int main() {
-  printf("--- 两个一元多项式相加 ---\n");
-  printf("创建第一个多项式:\n");
+  printf("--- 一元多项式相加 (优化版) ---\n");
+
+  printf("\n创建第一个多项式:\n");
   Node *poly1 = PolyInput();
 
   printf("\n创建第二个多项式:\n");
