@@ -1,0 +1,7 @@
+Many AGI-like code-generation models use architectures similar to the Transformer,
+which was first popularized by the success of language models like GPT.
+These models are trained on vast amounts of text data that includes source code from 
+different programming languages. For example, during training, the model learns the
+patterns of how functions are defined, loops are constructed, and variables are declared.
+When generating code, it predicts the next token (which could be a keyword, variable
+name, operator, etc.) based on the context of the previous tokens.
